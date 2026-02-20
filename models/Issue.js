@@ -22,6 +22,9 @@ const issueSchema = new mongoose.Schema({
         required: true,
         index: true,
     },
+    returnedDate: {
+        type: Date,
+    },
     status: {
         type: String,
         enum: ["issued", "returned", "overdue"],
