@@ -19,18 +19,7 @@ export const signupService = async ({name, email, password, role, profilePic}) =
         throw new Error("User with this email already exists");
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
-    console.log("Password hashed successfully");
-
-    const newUser = await User.create({
-        name : name,
-        email : email,
-        password : hashedPassword,
-        role : role,
-        profilePic : profilePic ? await cloudinary.uploader.upload(profilePic, { folder: "librams/profile_pics" }).then(result => result.secure_url) : undefined,
-    });
-
-    console.log("User created successfully: ", newUser);
+    
 
     return newUser;
 }
