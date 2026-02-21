@@ -43,5 +43,7 @@ export const verifyOTP = async ({ email, otp }) => {
     throw new Error("OTP expired");
   }
 
+  await Otp.deleteOne({ email });
+
   return email;
 };
