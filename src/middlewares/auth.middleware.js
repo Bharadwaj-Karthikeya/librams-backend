@@ -22,3 +22,16 @@ export const authMiddleware = (req, res, next) => {
     }
 
 }
+
+export const validateSchema = (schema) => {
+    return (req, res, next) => {
+        const { error } = schema.parse(req.body);
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                message: error.details[0].message,
+            });
+        }
+        next();
+    };
+}

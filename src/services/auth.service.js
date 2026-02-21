@@ -1,16 +1,11 @@
 import User from "../models/User.js";
 import { createOTPEntry, verifyOTP } from "./otp.service.js";
 import { uploadProfilePic } from "../utils/uploadUtils.js";
-import { generateToken } from "../utils/generateToken.js";
+import { generateToken, tempToken } from "../utils/generateToken.js";
 import bcrypt from "bcryptjs";
 
 export const signupService = async ({ email }) => {
   console.log("Signup Service called ", { email });
-
-  if (!email) {
-    console.error("Missing required field email");
-    throw new Error("Email is required");
-  }
 
   const existingUser = await User.findOne({ email });
 
@@ -19,22 +14,21 @@ export const signupService = async ({ email }) => {
     throw new Error("User with this email already exists");
   }
 
-  const { emailInfo, otpEntry } = await createOTPEntry(email);
+  const { emailInfo } = await createOTPEntry(email);
 
-  return { emailInfo, otpEntry };
+  const tempTokenValue = tempToken({ emailInfo });
+
+  return { tempTokenValue };
 };
 
-export const verifyUserService = async ({ email, otp }) => {
-  console.log("Verify User Service called ", { email, otp });
-  if (!email || !otp) {
-    console.error("Missing required fields email or otp");
-    throw new Error("Email and OTP are required");
-  }
+export const verifyUserService = async ({ otp , token }) => {
+  console.log("Verify User Service called ", { otp , token });
 
-  const verifiedEmail = await verifyOTP({ email, otp });
+  const decoded = tempToken.verify(token);
+  const verifiedEmail = await verifyOTP({ email: decoded.email, otp });
 
   if (!verifiedEmail) {
-    console.error("OTP verification failed for email: ", email);
+    console.error("OTP verification failed for email: ", decoded.email);
     throw new Error("OTP verification failed");
   }
 
@@ -55,11 +49,6 @@ export const createUserService = async ({
     role,
     profilePic,
   });
-
-  if (!email || !name || !password) {
-    console.error("Missing required fields email, name or password");
-    throw new Error("Email, name and password are required");
-  }
 
   let profilePicUrl = null;
 
