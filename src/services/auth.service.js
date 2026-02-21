@@ -24,7 +24,7 @@ export const signupService = async ({ email }) => {
 export const verifyUserService = async ({ otp , token }) => {
   console.log("Verify User Service called ", { otp , token });
 
-  const decoded = tempToken.verify(token);
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
   const verifiedEmail = await verifyOTP({ email: decoded.email, otp });
 
   if (!verifiedEmail) {
