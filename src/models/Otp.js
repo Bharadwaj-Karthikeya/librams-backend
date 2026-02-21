@@ -14,11 +14,10 @@ const otpSchema = new mongoose.Schema({
     expiresAt: {
         type: Date,
         required: true,
-        index: true,
     },
 }, { timestamps: true });
 
-otpSchema.index({ email: 1, expiresAt: 1 }, { expireAfterSeconds: 0 });
+otpSchema.index({expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const Otp = mongoose.model("Otp", otpSchema);
 

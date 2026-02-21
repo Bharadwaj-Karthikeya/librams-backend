@@ -19,7 +19,7 @@ export const createOTPEntry = async (email) => {
     expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes expiry
   });
 
-  return { emailInfo, otpEntry };
+  return { emailInfo};
 };
 
 export const verifyOTP = async ({ email, otp }) => {
@@ -33,7 +33,7 @@ export const verifyOTP = async ({ email, otp }) => {
   }
 
   const isMatch = await compareOTP(otp, otpEntry.otp);
-  if (!isMatch) {
+  if (!isMatch && !otpEntry.isVerified) {
     console.error(`Invalid OTP for email: ${email}`);
     throw new Error("Invalid OTP");
   }
@@ -42,6 +42,8 @@ export const verifyOTP = async ({ email, otp }) => {
     console.error(`OTP expired for email: ${email}`);
     throw new Error("OTP expired");
   }
+
+  await Otp.findOneAndDelete({ email });
 
   return email;
 };
