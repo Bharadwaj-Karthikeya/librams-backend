@@ -9,7 +9,7 @@ import cookieParser from 'cookie-parser'
 import connectDB from './config/db.js'
 
 import authRoutes from './routes/auth.route.js'
-// import bookRoutes from './routes/bookRoutes.js'
+import bookRoutes from './routes/books.route.js'
 // import issueRoutes from './routes/issueRoutes.js'
 
 const app = express()
@@ -27,7 +27,7 @@ app.use(cookieParser())
 connectDB()
 
 app.use('/auth', authRoutes)
-// app.use('/books', bookRoutes)
+app.use('/books', bookRoutes)
 // app.use('/issues', issueRoutes)
 
 export default app
