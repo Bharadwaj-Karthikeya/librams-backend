@@ -1,37 +1,46 @@
 import mongoose from "mongoose";
 
-const issueSchema = new mongoose.Schema({
+const issueSchema = new mongoose.Schema(
+  {
     book: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Book",
-        required: true,
-        index: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Book",
+      required: true,
+      index: true,
     },
-    user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-        index: true,
+    toUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    byUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
     },
     issueDate: {
-        type: Date,
-        default: Date.now,
+      type: Date,
+      default: Date.now,
     },
     dueDate: {
-        type: Date,
-        required: true,
-        index: true,
+      type: Date,
+      required: true,
+      index: true,
     },
     returnedDate: {
-        type: Date,
+      type: Date,
     },
     status: {
-        type: String,
-        enum: ["issued", "returned", "overdue"],
-        default: "issued",
-        index: true,
+      type: String,
+      enum: ["issued", "returned", "overdue"],
+      default: "issued",
+      index: true,
     },
-}, { timestamps: true });
+  },
+  { timestamps: true },
+);
 
 const Issue = mongoose.model("Issue", issueSchema);
 
