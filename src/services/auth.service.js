@@ -95,3 +95,72 @@ export const loginService = async ({ email, password }) => {
     
   return { token, user };
 };
+
+export const getUserProfileService = async (userId) => {
+  console.log("Get User Profile Service called for userId: ", userId);
+  const user = await User.findById(userId).select("-password");
+
+  if (!user) {
+    console.error("User not found with id: ", userId);
+    throw new Error("User not found");
+  }
+
+  return user;
+};
+
+export const updateUserProfileService = async (userId, updateData) => {
+  console.log("Update User Profile Service called for userId: ", userId, { name, profilePic });
+  const user = await User.findById(userId);
+
+  if (!user) {
+    console.error("User not found with id: ", userId);
+    throw new Error("User not found");
+  } 
+
+  if (updateData.profilePic) {
+    const profilePicUrl = await uploadProfilePic(updateData.profilePic);
+    user.profilePic = profilePicUrl;
+  }
+
+  if (updateData.name) {
+    user.name = updateData.name;
+  }
+
+  await user.save();
+
+  return user;
+};
+
+export const changePasswordService = async (userId, { currentPassword, newPassword }) => {
+  console.log("Change Password Service called for userId: ", userId);
+  const user = await User.findById(userId);
+
+  if (!user) {
+    console.error("User not found with id: ", userId);
+    throw new Error("User not found");
+  }
+
+  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+
+  if (!isCurrentPasswordValid) {
+    console.error("Current password is incorrect for user: ", userId);
+    throw new Error("Current password is incorrect");
+  }
+
+  user.password = await bcrypt.hash(newPassword, 10);
+  await user.save();
+  return { message: "Password changed successfully" };
+};
+
+export const deleteUserService = async (userId) => {
+  console.log("Delete User Service called for userId: ", userId);
+  const user = await User.findById(userId);
+
+  if (!user) {
+    console.error("User not found with id: ", userId);
+    throw new Error("User not found");
+  } 
+
+  await user.remove();
+  return { message: "User deleted successfully" };
+};
