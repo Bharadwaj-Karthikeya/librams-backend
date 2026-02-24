@@ -1,36 +1,36 @@
-import e from "express";
-import z from  "zod";
+import z from "zod";
 
 export const IssueBookSchema = z.object({
+  body: z.object({
     bookId: z.string().length(24, "Invalid book ID"),
-    toUserId: z.string().length(24, "Invalid user ID"),
+    toUserEmail: z.string().email("Invalid email"),
     dueDate: z.string().refine((dateStr) => {
-        const date = new Date(dateStr);
-        return !isNaN(date.getTime()) && date > new Date();
-    }, "Invalid due date. Must be a valid date string in the future."),
-});
-
-export const ExtendDueDateSchema = z.object({
-    newDueDate: z.string().refine((dateStr) => {
-        const date = new Date(dateStr);
-        return !isNaN(date.getTime()) && date > new Date();
-    }
-    , "Invalid new due date. Must be a valid date string in the future."),
+      const date = new Date(dateStr);
+      return !isNaN(date.getTime()) && date > new Date();
+    }, "Invalid due date. Must be future date."),
+  }).strict(),
 });
 
 export const returnIssueSchema = z.object({
-    issueId: z.string().length(24, "Invalid issue ID"),
-});
-
-export const getUserIssuesSchema = z.object({
-    userId: z.string().length(24, "Invalid user ID"),
+  params: z.object({
+    id: z.string().length(24, "Invalid issue ID"),
+  }),
 });
 
 export const extendDueDateSchema = z.object({
-    issueId: z.string().length(24, "Invalid issue ID"),
+  params: z.object({
+    id: z.string().length(24, "Invalid issue ID"),
+  }),
+  body: z.object({
     newDueDate: z.string().refine((dateStr) => {
-        const date = new Date(dateStr);
-        return !isNaN(date.getTime()) && date > new Date();
-    }, "Invalid new due date. Must be a valid date string in the future."),
+      const date = new Date(dateStr);
+      return !isNaN(date.getTime()) && date > new Date();
+    }, "Invalid new due date. Must be future date."),
+  }).strict(),
 });
 
+export const getIssuesBySearchSchema = z.object({
+  query: z.object({
+    searchTerm: z.string().min(1, "Search term required"),
+  }),
+});
