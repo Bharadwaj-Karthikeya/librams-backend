@@ -42,6 +42,10 @@ const issueSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+issueSchema.index({ book: 1, toUser: 1, status: 1 },
+  { unique: true, partialFilterExpression: { status: "issued" } }
+);
+
 const Issue = mongoose.model("Issue", issueSchema);
 
 export default Issue;

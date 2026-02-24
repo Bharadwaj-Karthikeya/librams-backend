@@ -10,7 +10,7 @@ import connectDB from './config/db.js'
 
 import authRoutes from './routes/auth.route.js'
 import bookRoutes from './routes/books.route.js'
-// import issueRoutes from './routes/issueRoutes.js'
+import issueRoutes from './routes/issue.route.js'
 
 const app = express()
 
@@ -28,6 +28,6 @@ connectDB()
 
 app.use('/auth', authRoutes)
 app.use('/books', bookRoutes)
-// app.use('/issues', issueRoutes)
+app.use('/issues', issueRoutes)
 
 export default app
