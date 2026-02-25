@@ -28,9 +28,9 @@ import { rateLimiter } from "../middlewares/ratelimitter.middleware.js";
 
 const router = express.Router();
 
-router.post("/signup", validateSchema(requestOtpSchema), signup);
+router.post("/signup", rateLimiter, validateSchema(requestOtpSchema), signup);
 
-router.post("/verify", validateSchema(verifyUserSchema), verifyUser);
+router.post("/verify", rateLimiter, validateSchema(verifyUserSchema), verifyUser);
 
 router.post(
   "/create",
@@ -39,7 +39,7 @@ router.post(
   createUser,
 );
 
-router.post("/login", validateSchema(loginSchema), login);
+router.post("/login", rateLimiter, validateSchema(loginSchema), login);
 
 router.put("/profile", validateSchema(updateProfileSchema), rateLimiter, updateUserProfile);
 
