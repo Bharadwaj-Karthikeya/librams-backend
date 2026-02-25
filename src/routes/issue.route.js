@@ -30,8 +30,8 @@ const router = express.Router();
 
 router.post(
   "/issue",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   validateSchema(IssueBookSchema),
   issueBook,
@@ -39,8 +39,8 @@ router.post(
 
 router.post(
   "/return/:id",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   validateSchema(returnIssueSchema),
   returnIssue,
@@ -48,24 +48,24 @@ router.post(
 
 router.get(
   "/overdue",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   getOverdueIssues,
 );
 
 router.get(
   "/user",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   validateSchema(getUserIssuesSchema),
   getUserIssues,
 );
 
 router.put(
   "/extend/:id",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   validateSchema(extendDueDateSchema),
   extendDueDate,
@@ -73,40 +73,40 @@ router.put(
 
 router.get(
   "/",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   getAllIssues,
 );
 
 router.get(
   "/:id",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   getIssueDetails,
 );
 
 router.get(
   "/book/:bookId",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   getBookIssueHistory,
 );
 
 router.get(
   "/search",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   getIssuesbySearch,
 );
 
 router.get(
   "/my-issues",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   getUserIssues,
 );
 

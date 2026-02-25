@@ -41,12 +41,12 @@ router.post(
 
 router.post("/login", rateLimiter, validateSchema(loginSchema), login);
 
-router.put("/profile", validateSchema(updateProfileSchema), rateLimiter, updateUserProfile);
+router.put("/profile", rateLimiter, validateSchema(updateProfileSchema),  updateUserProfile);
 
-router.get("/profile", validateSchema(getUserProfileSchema), getUserProfile);
+router.get("/profile", rateLimiter, validateSchema(getUserProfileSchema), getUserProfile);
 
-router.delete("/delete", validateSchema(deleteUserSchema), rateLimiter, deleteUser);
+router.delete("/delete", rateLimiter, validateSchema(deleteUserSchema), deleteUser);
 
-router.post("/reset-password", validateSchema(resetPasswordSchema), rateLimiter, resetPassword);
+router.post("/reset-password", rateLimiter, validateSchema(resetPasswordSchema), resetPassword);
 
 export default router;

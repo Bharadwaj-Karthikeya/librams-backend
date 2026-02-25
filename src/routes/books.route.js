@@ -31,18 +31,24 @@ const router = express.Router();
 
 router.post(
   "/add",
+  rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   validateSchema(createBookSchema),
   addBook,
 );
 
-router.get("/all", authMiddleware, rateLimiter, getBooks);
+router.get(
+  "/all", 
+  rateLimiter, 
+  authMiddleware, 
+  getBooks
+);
 
 router.patch(
   "/update",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   validateSchema(updateBookSchema),
   updateBook,
@@ -50,32 +56,32 @@ router.patch(
 
 router.get(
   "/details/:bookId",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   validateSchema(getBookDetailsSchema),
   getBookDetails,
 );
 
 router.get(
   "/category/:category",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   validateSchema(getbooksByCategorySchema),
   getBooksByCategory,
 );
 
 router.get(
   "/search",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   validateSchema(getBooksSearchSchema),
   getBooksBySearch,
 );
 
 router.delete(
   "/delete",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   validateSchema(deleteBookSchema),
   deleteBook,
@@ -83,8 +89,8 @@ router.delete(
 
 router.delete(
   "/delete-complete",
-  authMiddleware,
   rateLimiter,
+  authMiddleware,
   rolesMiddleware(["admin"]),
   validateSchema(deleteBookSchema),
   deleteBookPermanently,
