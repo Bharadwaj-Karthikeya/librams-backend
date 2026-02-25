@@ -24,6 +24,7 @@ import {
 } from "../dtos/user.zod.js";
 
 import { uploadPsize } from "../middlewares/upload.middleware.js";
+import { rateLimiter } from "../middlewares/ratelimitter.middleware.js";
 
 const router = express.Router();
 
@@ -40,12 +41,12 @@ router.post(
 
 router.post("/login", validateSchema(loginSchema), login);
 
-router.put("/profile", validateSchema(updateProfileSchema), updateUserProfile);
+router.put("/profile", validateSchema(updateProfileSchema), rateLimiter, updateUserProfile);
 
 router.get("/profile", validateSchema(getUserProfileSchema), getUserProfile);
 
-router.delete("/delete", validateSchema(deleteUserSchema), deleteUser);
+router.delete("/delete", validateSchema(deleteUserSchema), rateLimiter, deleteUser);
 
-router.post("/reset-password", validateSchema(resetPasswordSchema), resetPassword);
+router.post("/reset-password", validateSchema(resetPasswordSchema), rateLimiter, resetPassword);
 
 export default router;

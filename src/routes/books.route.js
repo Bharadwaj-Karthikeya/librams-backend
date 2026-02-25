@@ -24,6 +24,9 @@ import {
   getBooksSearchSchema,
   getbooksByCategorySchema,
 } from "../dtos/book.zod.js";
+
+import { rateLimiter } from "../middlewares/ratelimitter.middleware.js";
+
 const router = express.Router();
 
 router.post(
@@ -34,11 +37,12 @@ router.post(
   addBook,
 );
 
-router.get("/all", authMiddleware, getBooks);
+router.get("/all", authMiddleware, rateLimiter, getBooks);
 
 router.patch(
   "/update",
   authMiddleware,
+  rateLimiter,
   rolesMiddleware(["admin", "staff"]),
   validateSchema(updateBookSchema),
   updateBook,
@@ -47,6 +51,7 @@ router.patch(
 router.get(
   "/details/:bookId",
   authMiddleware,
+  rateLimiter,
   validateSchema(getBookDetailsSchema),
   getBookDetails,
 );
@@ -54,6 +59,7 @@ router.get(
 router.get(
   "/category/:category",
   authMiddleware,
+  rateLimiter,
   validateSchema(getbooksByCategorySchema),
   getBooksByCategory,
 );
@@ -61,6 +67,7 @@ router.get(
 router.get(
   "/search",
   authMiddleware,
+  rateLimiter,
   validateSchema(getBooksSearchSchema),
   getBooksBySearch,
 );
@@ -68,6 +75,7 @@ router.get(
 router.delete(
   "/delete",
   authMiddleware,
+  rateLimiter,
   rolesMiddleware(["admin", "staff"]),
   validateSchema(deleteBookSchema),
   deleteBook,
@@ -76,6 +84,7 @@ router.delete(
 router.delete(
   "/delete-complete",
   authMiddleware,
+  rateLimiter,
   rolesMiddleware(["admin"]),
   validateSchema(deleteBookSchema),
   deleteBookPermanently,
