@@ -2,116 +2,124 @@ import Book from "../models/Book.js";
 import User from "../models/User.js";
 import { uploadContent } from "../utils/uploadUtils.js";
 
-export const addBookService = async ({ body, user }) => {
-  console.log("Add Book Service called ", { bookData: body });
-  const existingBook = await Book.findOne({ isbn: body.isbn });
+const resolveRole = async (userId) => {
+  const user = await User.findById(userId).select("role");
+  return user?.role ?? "student";
+};
+
+// Creates a book with optional cover upload, defaulting availability to total copies.
+export const addBookService = async ({ bookData, userId, coverFile }) => {
+  console.info("[BooksService] Adding book", { isbn: bookData.isbn, userId });
+  const existingBook = await Book.findOne({ isbn: bookData.isbn });
   if (existingBook) {
-    console.error(`Book with ISBN "${body.isbn}" already exists`);
     throw new Error("Book with this ISBN already exists");
   }
 
-  if (body.bookCover) {
-    const bookCoverUrl = await uploadContent(body.bookCover);
-    body.bookCover = bookCoverUrl;
+  if (coverFile) {
+    bookData.bookCover = await uploadContent(coverFile, "Librams/Books");
   }
 
   const newBook = await Book.create({
-    ...body,
-    availableCopies: body.copies,
+    ...bookData,
+    availableCopies: bookData.copies,
     isActive: true,
     isAvailableforIssue: true,
-    createdBy: user.userId,
-    updatedBy: user.userId,
+    createdBy: userId,
+    updatedBy: userId,
   });
 
   return newBook;
 };
 
-export const getBooksService = async ({user}) => {
-  const userRole = await User.findById(user.userId).select("role");
-  if(userRole.role === "student") {
-    const books = await Book.find({ isActive: true, isAvailableforIssue: true }).sort({ availableCopies: -1 });
-    return books;
-  }
-  const books = await Book.find().sort({ availableCopies: -1 });
-  return books;
+// Returns books filtered by role (students only see available titles).
+export const getBooksService = async ({ userId }) => {
+  const role = await resolveRole(userId);
+  console.info("[BooksService] Listing books", { userId, role });
+  const query = role === "student"
+    ? { isActive: true, isAvailableforIssue: true }
+    : {};
+  return Book.find(query).sort({ availableCopies: -1, updatedAt: -1 });
 };
 
-export const getBookDetailsService = async ({user, bookId}) => {
-  const userRole = await User.findById(user.userId).select("role");
-  if(userRole.role === "student") {
-    const book = await Book.findOne({ _id: bookId, isActive: true, isAvailableforIssue: true });
-    return book;
+// Retrieves a single book respecting visibility rules.
+export const getBookDetailsService = async ({ userId, bookId }) => {
+  const role = await resolveRole(userId);
+  console.info("[BooksService] Fetching book details", { bookId, role });
+  const query = role === "student"
+    ? { _id: bookId, isActive: true, isAvailableforIssue: true }
+    : { _id: bookId };
+
+  const book = await Book.findOne(query);
+  if (!book) {
+    throw new Error("Book not found");
   }
-  const book = await Book.findById(bookId);
   return book;
 };
 
-export const getBooksByCategoryService = async ({user, category}) => {
-  const userRole = await User.findById(user.userId).select("role");
-  if(userRole.role === "student") {
-    const books = await Book.find({ category, isActive: true, isAvailableforIssue: true }).sort({ availableCopies: -1 });
-    return books;
-  }
-  const books = await Book.find({ category }).sort({ availableCopies: -1 });
-  return books;
+// Lists books for a category, applying student visibility rules.
+export const getBooksByCategoryService = async ({ userId, category }) => {
+  const role = await resolveRole(userId);
+  console.info("[BooksService] Category lookup", { category, role });
+  const query = role === "student"
+    ? { category, isActive: true, isAvailableforIssue: true }
+    : { category };
+  return Book.find(query).sort({ availableCopies: -1, updatedAt: -1 });
 };
 
-export const getBookBySearchService = async ({user, searchTerm}) => {
-  const userRole = await User.findById(user.userId).select("role");
-  if(userRole.role === "student") {
-    const books = await Book.find({
-      $text: { $search: searchTerm , isActive: true, isAvailableforIssue: true },
-    }).sort({ availableCopies: -1 });
-    return books;
+// Text search over books honoring student restrictions.
+export const getBookBySearchService = async ({ userId, searchTerm }) => {
+  const role = await resolveRole(userId);
+  const trimmedTerm = searchTerm?.trim();
+  if (!trimmedTerm) {
+    throw new Error("Search term is required");
   }
-  const books = await Book.find({
-    $text: { $search: searchTerm , isActive: true },
-    score: { $meta: "textScore" },
-  }).sort({ availableCopies: -1 , score: { $meta: "textScore" } });
-  return books;
+  console.info("[BooksService] Searching books", { searchTerm: trimmedTerm, role });
+  const baseQuery = {
+    $text: { $search: trimmedTerm },
+  };
+
+  const filter = role === "student"
+    ? { ...baseQuery, isActive: true, isAvailableforIssue: true }
+    : { ...baseQuery, isActive: true };
+
+  return Book.find(filter, { score: { $meta: "textScore" } })
+    .sort({ score: { $meta: "textScore" } });
 };
 
-export const updateBookService = async ({ body, user }) => {
-  try {
-    const existingBook = await Book.findById(body.bookId);
+// Updates book metadata and cover while keeping counts consistent.
+export const updateBookService = async ({ bookId, updateFields, userId, coverFile }) => {
+  console.info("[BooksService] Updating book", { bookId, userId });
+  const existingBook = await Book.findById(bookId);
 
-    if (!existingBook) {
-      console.error(`Book with ID "${body.bookId}" not found for update`);
-      throw new Error("Book not found");
-    } 
-
-    const updateData = { ...body.updateFields };
-    console.log("Update Book Service called ", { bookId: body.bookId, updateData, user });
-
-    if (updateData.bookCover) {
-      const bookCoverUrl = await uploadContent(updateData.bookCover);
-      updateData.bookCover = bookCoverUrl;
-    }
-
-    if (updateData.copies !== undefined) {
-      if(existingBook.copies < updateData.availableCopies) {
-        throw new Error("Available copies cannot be less than current available copies");
-      }
-    }
-
-    const book = await Book.findOneAndUpdate(
-      { _id: body.bookId },
-      { $set: { ...updateData, updatedBy: user.userId } },
-      { new: true },
-    );
-
-    return book;
-  } catch (error) {
-    console.error("Error updating book: ", error);
-    throw new Error("Failed to update book");
+  if (!existingBook) {
+    throw new Error("Book not found");
   }
+
+  const updateData = { ...updateFields };
+  if (coverFile) {
+    updateData.bookCover = await uploadContent(coverFile, "Librams/Books");
+  }
+
+  const targetTotal = updateData.copies ?? existingBook.copies;
+  const targetAvailable = updateData.availableCopies ?? existingBook.availableCopies;
+  if (targetAvailable > targetTotal) {
+    throw new Error("Available copies cannot exceed total copies");
+  }
+
+  const book = await Book.findOneAndUpdate(
+    { _id: bookId },
+    { $set: { ...updateData, updatedBy: userId } },
+    { new: true },
+  );
+
+  return book;
 };
 
+// Soft deletes a book by flipping its active flag.
 export const deleteBookService = async (bookId) => {
+  console.info("[BooksService] Soft deleting book", { bookId });
   const book = await Book.findById(bookId);
   if (!book) {
-    console.error(`Book with ID "${bookId}" not found for deletion`);
     throw new Error("Book not found");
   }
   book.isActive = false;
@@ -119,7 +127,9 @@ export const deleteBookService = async (bookId) => {
   return { message: "Book deleted successfully" };
 };
 
+// Permanently removes a book document.
 export const deleteBookPermanentlyService = async (bookId) => {
+  console.info("[BooksService] Hard deleting book", { bookId });
   await Book.findByIdAndDelete(bookId);
   return { message: "Book deleted successfully" };
 };

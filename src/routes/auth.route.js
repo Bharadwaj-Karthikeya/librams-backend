@@ -2,7 +2,6 @@ import express from "express";
 
 import {
   signup,
-  verifyUser,
   createUser,
   login,
   updateUserProfile,
@@ -11,15 +10,13 @@ import {
   resetPassword,
 } from "../controllers/auth.controller.js";
 
-import { validateSchema } from "../middlewares/auth.middleware.js";
+import { authMiddleware, rolesMiddleware, validateSchema } from "../middlewares/auth.middleware.js";
 import {
+  signupSchema,
   createUserSchema,
-  verifyUserSchema,
   loginSchema,
-  requestOtpSchema,
   resetPasswordSchema,
   updateProfileSchema,
-  getUserProfileSchema,
   deleteUserSchema,
 } from "../dtos/user.zod.js";
 
@@ -28,9 +25,7 @@ import { rateLimiter } from "../middlewares/ratelimitter.middleware.js";
 
 const router = express.Router();
 
-router.post("/signup", rateLimiter, validateSchema(requestOtpSchema), signup);
-
-router.post("/verify", rateLimiter, validateSchema(verifyUserSchema), verifyUser);
+router.post("/signup", rateLimiter, validateSchema(signupSchema), signup);
 
 router.post(
   "/create",
@@ -41,11 +36,30 @@ router.post(
 
 router.post("/login", rateLimiter, validateSchema(loginSchema), login);
 
-router.put("/profile", rateLimiter, validateSchema(updateProfileSchema),  updateUserProfile);
+router.put(
+  "/profile",
+  rateLimiter,
+  authMiddleware,
+  uploadPsize.single("profilePic"),
+  validateSchema(updateProfileSchema),
+  updateUserProfile,
+);
 
-router.get("/profile", rateLimiter, validateSchema(getUserProfileSchema), getUserProfile);
+router.get(
+  "/profile",
+  rateLimiter,
+  authMiddleware,
+  getUserProfile,
+);
 
-router.delete("/delete", rateLimiter, validateSchema(deleteUserSchema), deleteUser);
+router.delete(
+  "/delete",
+  rateLimiter,
+  authMiddleware,
+  rolesMiddleware(["admin", "staff"]),
+  validateSchema(deleteUserSchema),
+  deleteUser,
+);
 
 router.post("/reset-password", rateLimiter, validateSchema(resetPasswordSchema), resetPassword);
 

@@ -8,6 +8,7 @@ import {
   getBooksByCategory,
   getBooksBySearch,
   deleteBook,
+  deleteBookPermanently,
 } from "../controllers/books.controller.js";
 
 import {
@@ -26,6 +27,7 @@ import {
 } from "../dtos/book.zod.js";
 
 import { rateLimiter } from "../middlewares/ratelimitter.middleware.js";
+import { uploadCSize } from "../middlewares/upload.middleware.js";
 
 const router = express.Router();
 
@@ -34,6 +36,7 @@ router.post(
   rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
+  uploadCSize.single("bookCover"),
   validateSchema(createBookSchema),
   addBook,
 );
@@ -50,6 +53,7 @@ router.patch(
   rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
+  uploadCSize.single("bookCover"),
   validateSchema(updateBookSchema),
   updateBook,
 );

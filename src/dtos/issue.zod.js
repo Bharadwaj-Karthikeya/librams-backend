@@ -1,36 +1,54 @@
 import z from "zod";
 
+const objectId = z.string().length(24, "Invalid identifier");
+const futureDate = z.string().refine((dateStr) => {
+  const date = new Date(dateStr);
+  return !isNaN(date.getTime()) && date > new Date();
+}, "Invalid date. Must be a future date.");
+
 export const IssueBookSchema = z.object({
   body: z.object({
-    bookId: z.string().length(24, "Invalid book ID"),
+    bookId: objectId,
     toUserEmail: z.string().email("Invalid email"),
-    dueDate: z.string().refine((dateStr) => {
-      const date = new Date(dateStr);
-      return !isNaN(date.getTime()) && date > new Date();
-    }, "Invalid due date. Must be future date."),
+    dueDate: futureDate,
   }).strict(),
 });
 
 export const returnIssueSchema = z.object({
   params: z.object({
-    id: z.string().length(24, "Invalid issue ID"),
-  }),
+    id: objectId,
+  }).strict(),
 });
 
 export const extendDueDateSchema = z.object({
   params: z.object({
-    id: z.string().length(24, "Invalid issue ID"),
-  }),
+    id: objectId,
+  }).strict(),
   body: z.object({
-    newDueDate: z.string().refine((dateStr) => {
-      const date = new Date(dateStr);
-      return !isNaN(date.getTime()) && date > new Date();
-    }, "Invalid new due date. Must be future date."),
+    newDueDate: futureDate,
+  }).strict(),
+});
+
+export const getUserIssuesSchema = z.object({
+  query: z.object({
+    userId: objectId.optional(),
+  }).strict(),
+});
+
+export const getIssueDetailsSchema = z.object({
+  params: z.object({
+    id: objectId,
+  }).strict(),
+});
+
+export const getBookIssueHistorySchema = z.object({
+  params: z.object({
+    bookId: objectId,
   }).strict(),
 });
 
 export const getIssuesBySearchSchema = z.object({
   query: z.object({
     searchTerm: z.string().min(1, "Search term required"),
-  }),
+  }).strict(),
 });

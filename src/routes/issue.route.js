@@ -15,6 +15,9 @@ import {
   returnIssueSchema,
   getUserIssuesSchema,
   extendDueDateSchema,
+  getIssuesBySearchSchema,
+  getIssueDetailsSchema,
+  getBookIssueHistorySchema,
 } from "../dtos/issue.zod.js";
 
 import {
@@ -80,11 +83,12 @@ router.get(
 );
 
 router.get(
-  "/:id",
+  "/search",
   rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
-  getIssueDetails,
+  validateSchema(getIssuesBySearchSchema),
+  getIssuesbySearch,
 );
 
 router.get(
@@ -92,21 +96,24 @@ router.get(
   rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
+  validateSchema(getBookIssueHistorySchema),
   getBookIssueHistory,
 );
 
 router.get(
-  "/search",
+  "/:id",
   rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
-  getIssuesbySearch,
+  validateSchema(getIssueDetailsSchema),
+  getIssueDetails,
 );
 
 router.get(
   "/my-issues",
   rateLimiter,
   authMiddleware,
+  validateSchema(getUserIssuesSchema),
   getUserIssues,
 );
 

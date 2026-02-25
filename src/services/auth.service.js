@@ -1,125 +1,125 @@
-import User from "../models/User.js";
-import { createOTPEntry, verifyOTP } from "./otp.service.js";
-import { uploadProfilePic } from "../utils/uploadUtils.js";
-import { generateToken, tempToken } from "../utils/generateToken.js";
 import bcrypt from "bcryptjs";
+import User from "../models/User.js";
+import { uploadProfilePic } from "../utils/uploadUtils.js";
+import { generateToken } from "../utils/generateToken.js";
 
-export const signupService = async ({ email }) => {
-  console.log("Signup Service called ", { email });
+const sanitizeUser = (userDoc) => {
+  if (!userDoc) return null;
+  const userObject = userDoc.toObject({ getters: true });
+  delete userObject.password;
+  return userObject;
+};
+
+// Creates an end-user account without OTP verification.
+export const signupService = async ({ name, email, password }) => {
+  console.info("[AuthService] Direct signup", { email });
+
+  if (!name || !email || !password) {
+    throw new Error("Name, email, and password are required");
+  }
 
   const existingUser = await User.findOne({ email });
-
   if (existingUser) {
-    console.error("User with this email already exists: ", email);
     throw new Error("User with this email already exists");
   }
 
-  const { emailInfo } = await createOTPEntry(email);
+  const newUser = await User.create({
+    name,
+    email,
+    password: await bcrypt.hash(password, 10),
+    role: "student",
+  });
 
-  const tempTokenValue = tempToken({ emailInfo });
-
-  return { tempTokenValue };
+  const token = generateToken(newUser._id);
+  return { token, user: sanitizeUser(newUser) };
 };
 
-export const verifyUserService = async ({ otp , token }) => {
-  console.log("Verify User Service called ", { otp , token });
-
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  const verifiedEmail = await verifyOTP({ email: decoded.email, otp });
-
-  if (!verifiedEmail) {
-    console.error("OTP verification failed for email: ", decoded.email);
-    throw new Error("OTP verification failed");
-  }
-
-  return verifiedEmail;
-};
-
+// Creates a user record and uploads the optional profile picture.
 export const createUserService = async ({
   email,
   name,
   password,
   role,
-  profilePic,
+  profilePicFile,
 }) => {
-  console.log("Create User Service called ", {
-    email,
-    name,
-    password,
-    role,
-    profilePic,
-  });
+  console.info("[AuthService] Creating user", { email });
+
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw new Error("User with this email already exists");
+  }
 
   let profilePicUrl = null;
-
-  if (profilePic) {
-    profilePicUrl = await uploadProfilePic(profilePic);
+  if (profilePicFile) {
+    profilePicUrl = await uploadProfilePic(profilePicFile);
   }
 
   const newUser = await User.create({
     email,
     name,
-    password : await bcrypt.hash(password, 10),
-    role: role || "user",
-    profilePic: profilePicUrl ,
+    password: await bcrypt.hash(password, 10),
+    role: role || "student",
+    profilePicture: profilePicUrl,
   });
 
   const token = generateToken(newUser._id);
-
-  return { token, user: newUser };
+  return {
+    token,
+    user: sanitizeUser(newUser),
+  };
 };
 
+// Authenticates an existing user and returns a JWT with sanitized profile data.
 export const loginService = async ({ email, password }) => {
-  console.log("Login Service called ", { email, password });
+  console.info("[AuthService] Login attempt", { email });
 
   if (!email || !password) {
-    console.error("Missing required fields email or password");
     throw new Error("Email and password are required");
   }
 
   const user = await User.findOne({ email });
 
   if (!user) {
-    console.error("User not found with email: ", email);
     throw new Error("Invalid credentials");
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordValid) {
-    console.error("Invalid password for user: ", email);
     throw new Error("Invalid credentials");
   }
 
   const token = generateToken(user._id);
-    
-  return { token, user };
+  return { token, user: sanitizeUser(user) };
 };
 
+// Retrieves a sanitized profile for the supplied user id.
 export const getUserProfileService = async (userId) => {
-  console.log("Get User Profile Service called for userId: ", userId);
+  console.info("[AuthService] Fetching profile", { userId });
+  if (!userId) {
+    throw new Error("Missing user id");
+  }
+
   const user = await User.findById(userId).select("-password");
 
   if (!user) {
-    console.error("User not found with id: ", userId);
     throw new Error("User not found");
   }
 
   return user;
 };
 
+// Applies updates to the authenticated user's profile and uploads a new picture if supplied.
 export const updateUserProfileService = async (userId, updateData) => {
-  console.log("Update User Profile Service called for userId: ", userId, { name, profilePic });
+  console.info("[AuthService] Updating profile", { userId });
   const user = await User.findById(userId);
 
   if (!user) {
-    console.error("User not found with id: ", userId);
     throw new Error("User not found");
-  } 
+  }
 
-  if (updateData.profilePic) {
-    const profilePicUrl = await uploadProfilePic(updateData.profilePic);
-    user.profilePic = profilePicUrl;
+  if (updateData.profilePicFile) {
+    user.profilePicture = await uploadProfilePic(updateData.profilePicFile);
   }
 
   if (updateData.name) {
@@ -127,23 +127,21 @@ export const updateUserProfileService = async (userId, updateData) => {
   }
 
   await user.save();
-
-  return user;
+  return sanitizeUser(user);
 };
 
+// Allows a user to change their password after confirming the current password.
 export const changePasswordService = async (userId, { currentPassword, newPassword }) => {
-  console.log("Change Password Service called for userId: ", userId);
+  console.info("[AuthService] Changing password", { userId });
   const user = await User.findById(userId);
 
   if (!user) {
-    console.error("User not found with id: ", userId);
     throw new Error("User not found");
   }
 
   const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
 
   if (!isCurrentPasswordValid) {
-    console.error("Current password is incorrect for user: ", userId);
     throw new Error("Current password is incorrect");
   }
 
@@ -152,15 +150,28 @@ export const changePasswordService = async (userId, { currentPassword, newPasswo
   return { message: "Password changed successfully" };
 };
 
+// Deletes a user record permanently.
 export const deleteUserService = async (userId) => {
-  console.log("Delete User Service called for userId: ", userId);
-  const user = await User.findById(userId);
+  console.info("[AuthService] Deleting user", { userId });
+  const user = await User.findByIdAndDelete(userId);
 
   if (!user) {
-    console.error("User not found with id: ", userId);
     throw new Error("User not found");
-  } 
+  }
 
-  await user.remove();
   return { message: "User deleted successfully" };
+};
+
+// Resets a user's password after confirming the account via email.
+export const resetPasswordService = async ({ email, newPassword }) => {
+  console.info("[AuthService] Resetting password", { email });
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  user.password = await bcrypt.hash(newPassword, 10);
+  await user.save();
+  return { message: "Password reset successfully" };
 };

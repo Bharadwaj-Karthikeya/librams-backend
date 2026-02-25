@@ -1,47 +1,48 @@
-import cloundinary from "../config/cloudinary.js";
-import fs from "fs";
+import { Readable } from "stream";
+import cloudinary from "../config/cloudinary.js";
 
-export const uploadProfilePic = async () => {
-    try {
-        const result = await new Promise((resolve, reject) => {
-            cloundinary.uploader.upload_stream({
-                folder: "Librams/profile_pics",
-                resource_type: "image",
-            }, (error, result) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(result);
-                }
-            });
-        });
-        fs.unlinkSync(filePath);
-        return result.secure_url;
-    } catch (error) {
-        console.error("Error uploading profile picture: ", error);
-        throw new Error("Failed to upload profile picture");
+const streamUpload = (file, options) => {
+    if (!file) {
+        return Promise.resolve(null);
     }
 
-}
-
-export const uploadContent = async () => {
-    try {
-        const result = await new Promise((resolve, reject) => {
-            cloundinary.uploader.upload_stream({
-                folder: `Librams/Books`,
-            }, (error, result) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(result);
-                }
-            });
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(options, (error, result) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(result);
+            }
         });
-        fs.unlinkSync(filePath);
-        return result.secure_url;
-    } catch (error) {
-        console.error("Error uploading content: ", error);
-        throw new Error("Failed to upload content");
-    }   
 
-}
+        Readable.from(file.buffer).pipe(uploadStream);
+    });
+};
+
+// Uploads profile pictures to the dedicated Cloudinary folder.
+export const uploadProfilePic = async (file) => {
+    try {
+        const result = await streamUpload(file, {
+            folder: "Librams/profile_pics",
+            resource_type: "image",
+        });
+        return result?.secure_url ?? null;
+    } catch (error) {
+        console.error("Error uploading profile picture", error.message);
+        throw new Error("Failed to upload profile picture");
+    }
+};
+
+// Uploads generic content (covers, documents, etc.).
+export const uploadContent = async (file, folder = "Librams/Books") => {
+    try {
+        const result = await streamUpload(file, {
+            folder,
+            resource_type: "auto",
+        });
+        return result?.secure_url ?? null;
+    } catch (error) {
+        console.error("Error uploading content", error.message);
+        throw new Error("Failed to upload content");
+    }
+};
