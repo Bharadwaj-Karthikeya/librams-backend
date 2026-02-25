@@ -2,7 +2,6 @@ import express from "express";
 
 import {
   signup,
-  verifyUser,
   createUser,
   login,
   updateUserProfile,
@@ -11,25 +10,22 @@ import {
   resetPassword,
 } from "../controllers/auth.controller.js";
 
-import { validateSchema } from "../middlewares/auth.middleware.js";
+import { authMiddleware, rolesMiddleware, validateSchema } from "../middlewares/auth.middleware.js";
 import {
+  signupSchema,
   createUserSchema,
-  verifyUserSchema,
   loginSchema,
-  requestOtpSchema,
   resetPasswordSchema,
   updateProfileSchema,
-  getUserProfileSchema,
   deleteUserSchema,
 } from "../dtos/user.zod.js";
 
 import { uploadPsize } from "../middlewares/upload.middleware.js";
+import { rateLimiter } from "../middlewares/ratelimitter.middleware.js";
 
 const router = express.Router();
 
-router.post("/signup", validateSchema(requestOtpSchema), signup);
-
-router.post("/verify", validateSchema(verifyUserSchema), verifyUser);
+router.post("/signup", rateLimiter, validateSchema(signupSchema), signup);
 
 router.post(
   "/create",
@@ -38,14 +34,33 @@ router.post(
   createUser,
 );
 
-router.post("/login", validateSchema(loginSchema), login);
+router.post("/login", rateLimiter, validateSchema(loginSchema), login);
 
-router.put("/profile", validateSchema(updateProfileSchema), updateUserProfile);
+router.put(
+  "/profile",
+  rateLimiter,
+  authMiddleware,
+  uploadPsize.single("profilePic"),
+  validateSchema(updateProfileSchema),
+  updateUserProfile,
+);
 
-router.get("/profile", validateSchema(getUserProfileSchema), getUserProfile);
+router.get(
+  "/profile",
+  rateLimiter,
+  authMiddleware,
+  getUserProfile,
+);
 
-router.delete("/delete", validateSchema(deleteUserSchema), deleteUser);
+router.delete(
+  "/delete",
+  rateLimiter,
+  authMiddleware,
+  rolesMiddleware(["admin", "staff"]),
+  validateSchema(deleteUserSchema),
+  deleteUser,
+);
 
-router.post("/reset-password", validateSchema(resetPasswordSchema), resetPassword);
+router.post("/reset-password", rateLimiter, validateSchema(resetPasswordSchema), resetPassword);
 
 export default router;

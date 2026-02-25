@@ -1,0 +1,434 @@
+openapi: 3.0.3
+info:
+  title: Librams Backend API
+  version: 1.0.0
+  description: |
+    REST API for managing Librams authentication, catalog, and issue workflows.
+servers:
+  - url: http://localhost:5000
+    description: Local development
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Something went wrong
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Login successful
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 64c123...
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, staff, student]
+        profilePicture:
+          type: string
+          nullable: true
+    Book:
+      type: object
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+        author:
+          type: string
+        isbn:
+          type: string
+        category:
+          type: string
+        availableCopies:
+          type: integer
+        bookCover:
+          type: string
+          nullable: true
+    Issue:
+      type: object
+      properties:
+        _id:
+          type: string
+        book:
+          $ref: '#/components/schemas/Book'
+        toUser:
+          $ref: '#/components/schemas/User'
+        byUser:
+          $ref: '#/components/schemas/User'
+        status:
+          type: string
+          enum: [issued, overdue, returned]
+        dueDate:
+          type: string
+          format: date-time
+        returnedDate:
+          type: string
+          format: date-time
+          nullable: true
+paths:
+  /auth/signup:
+    post:
+      summary: Create an account (self-service signup)
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '201':
+          description: Signup successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/create:
+    post:
+      summary: Create a user (admin/staff action)
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                role:
+                  type: string
+                  enum: [admin, staff, student]
+                profilePic:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Creation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/login:
+    post:
+      summary: Authenticate an existing user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Auth success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/profile:
+    get:
+      summary: Get the authenticated user's profile
+      security:
+        - bearerAuth: []
+      tags: [Auth]
+      responses:
+        '200':
+          description: Profile data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+    put:
+      summary: Update the authenticated user's profile
+      security:
+        - bearerAuth: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                profilePic:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated profile
+        '400':
+          description: Validation error
+  /auth/delete:
+    delete:
+      summary: Delete a user (admin/staff)
+      security:
+        - bearerAuth: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId:
+                  type: string
+      responses:
+        '200':
+          description: Deleted
+        '403':
+          description: Forbidden
+  /books/add:
+    post:
+      summary: Add a book
+      security:
+        - bearerAuth: []
+      tags: [Books]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, author, isbn, category, copies]
+              properties:
+                title:
+                  type: string
+                author:
+                  type: string
+                isbn:
+                  type: string
+                category:
+                  type: string
+                description:
+                  type: string
+                copies:
+                  type: integer
+                bookCover:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Created book
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+  /books/all:
+    get:
+      summary: List books visible to the user
+      security:
+        - bearerAuth: []
+      tags: [Books]
+      responses:
+        '200':
+          description: Books array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+  /books/details/{bookId}:
+    get:
+      summary: Fetch a single book
+      security:
+        - bearerAuth: []
+      tags: [Books]
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book data
+  /books/search:
+    get:
+      summary: Text search over books
+      security:
+        - bearerAuth: []
+      tags: [Books]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching books
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+  /issues/issue:
+    post:
+      summary: Issue a book to a user
+      security:
+        - bearerAuth: []
+      tags: [Issues]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookId, toUserEmail, dueDate]
+              properties:
+                bookId:
+                  type: string
+                toUserEmail:
+                  type: string
+                dueDate:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Issue created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Issue'
+  /issues/return/{id}:
+    post:
+      summary: Return an issue
+      security:
+        - bearerAuth: []
+      tags: [Issues]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Issue updated
+  /issues/overdue:
+    get:
+      summary: List overdue issues
+      security:
+        - bearerAuth: []
+      tags: [Issues]
+      responses:
+        '200':
+          description: Overdue issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Issue'
+  /issues/my-issues:
+    get:
+      summary: List issues for the authenticated user
+      security:
+        - bearerAuth: []
+      tags: [Issues]
+      responses:
+        '200':
+          description: User issues
+  /issues/search:
+    get:
+      summary: Search issues (admin/staff)
+      security:
+        - bearerAuth: []
+      tags: [Issues]
+      parameters:
+        - name: searchTerm
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Issue'

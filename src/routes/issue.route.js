@@ -15,6 +15,9 @@ import {
   returnIssueSchema,
   getUserIssuesSchema,
   extendDueDateSchema,
+  getIssuesBySearchSchema,
+  getIssueDetailsSchema,
+  getBookIssueHistorySchema,
 } from "../dtos/issue.zod.js";
 
 import {
@@ -24,11 +27,13 @@ import {
 } from "../middlewares/auth.middleware.js";
 
 import express from "express";
+import { rateLimiter } from "../middlewares/ratelimitter.middleware.js";
 
 const router = express.Router();
 
 router.post(
   "/issue",
+  rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   validateSchema(IssueBookSchema),
@@ -37,6 +42,7 @@ router.post(
 
 router.post(
   "/return/:id",
+  rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   validateSchema(returnIssueSchema),
@@ -45,6 +51,7 @@ router.post(
 
 router.get(
   "/overdue",
+  rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   getOverdueIssues,
@@ -52,6 +59,7 @@ router.get(
 
 router.get(
   "/user",
+  rateLimiter,
   authMiddleware,
   validateSchema(getUserIssuesSchema),
   getUserIssues,
@@ -59,6 +67,7 @@ router.get(
 
 router.put(
   "/extend/:id",
+  rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   validateSchema(extendDueDateSchema),
@@ -67,30 +76,45 @@ router.put(
 
 router.get(
   "/",
+  rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
   getAllIssues,
 );
 
 router.get(
-  "/:id",
+  "/search",
+  rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
-  getIssueDetails,
+  validateSchema(getIssuesBySearchSchema),
+  getIssuesbySearch,
 );
 
 router.get(
   "/book/:bookId",
+  rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
+  validateSchema(getBookIssueHistorySchema),
   getBookIssueHistory,
 );
 
 router.get(
-  "/search",
+  "/:id",
+  rateLimiter,
   authMiddleware,
   rolesMiddleware(["admin", "staff"]),
-  getIssuesbySearch,
+  validateSchema(getIssueDetailsSchema),
+  getIssueDetails,
+);
+
+router.get(
+  "/my-issues",
+  rateLimiter,
+  authMiddleware,
+  validateSchema(getUserIssuesSchema),
+  getUserIssues,
 );
 
 export default router;

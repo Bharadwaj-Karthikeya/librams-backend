@@ -1,43 +1,58 @@
 import zod from "zod";
 
+const objectIdField = zod.string().length(24, "Invalid identifier");
+
 export const createBookSchema = zod.object({
-  title: zod.string().min(1, "Title is required"),
-  author: zod.string().min(1, "Author is required"),
-  isbn: zod.string().min(1, "ISBN is required"),
-  description: zod.string().optional(),
-  publishedYear: zod.number().optional(),
-  category: zod.string().min(1, "Category is required"),
-  bookCover: zod.string().optional(),
-  copies: zod.number(),
-}).strict();
+  body: zod.object({
+    title: zod.string().min(1, "Title is required"),
+    author: zod.string().min(1, "Author is required"),
+    isbn: zod.string().min(1, "ISBN is required"),
+    description: zod.string().optional(),
+    publishedYear: zod.number().optional(),
+    category: zod.string().min(1, "Category is required"),
+    bookCover: zod.string().optional(),
+    copies: zod.number().int().positive(),
+  }).strict(),
+});
 
 export const updateBookSchema = zod.object({
-    bookId: zod.string(),
+  body: zod.object({
+    bookId: objectIdField,
     updateFields: zod.object({
       title: zod.string().optional(),
       author: zod.string().optional(),
       category: zod.string().optional(),
       description: zod.string().optional(),
-      totalCopies: zod.number().int().positive().optional(),
+      copies: zod.number().int().positive().optional(),
+      availableCopies: zod.number().int().nonnegative().optional(),
       bookCover: zod.string().optional(),
       isActive: zod.boolean().optional(),
-      isAvailableForIssue: zod.boolean().optional()
-    }).strict()
+      isAvailableforIssue: zod.boolean().optional(),
+    }).strict(),
+  }).strict(),
 });
 
 export const getBooksSearchSchema = zod.object({
-  searchTerm: zod.string().optional(),
+  query: zod.object({
+    q: zod.string().min(1, "Search query is required"),
+  }).strict(),
 });
 
 export const getbooksByCategorySchema = zod.object({
-  category: zod.string().min(1, "Category is required"),
+  params: zod.object({
+    category: zod.string().min(1, "Category is required"),
+  }).strict(),
 });
 
 export const getBookDetailsSchema = zod.object({
-  bookId: zod.string().min(1, "Book ID is required"),
+  params: zod.object({
+    bookId: objectIdField,
+  }).strict(),
 });
 
 export const deleteBookSchema = zod.object({
-  bookId: zod.string().min(1, "Book ID is required"),
+  body: zod.object({
+    bookId: objectIdField,
+  }).strict(),
 });
 
