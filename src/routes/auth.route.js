@@ -1,7 +1,6 @@
 import express from "express";
 
 import {
-  signup,
   createUser,
   login,
   updateUserProfile,
@@ -12,7 +11,6 @@ import {
 
 import { authMiddleware, rolesMiddleware, validateSchema } from "../middlewares/auth.middleware.js";
 import {
-  signupSchema,
   createUserSchema,
   loginSchema,
   resetPasswordSchema,
@@ -25,10 +23,9 @@ import { rateLimiter } from "../middlewares/ratelimitter.middleware.js";
 
 const router = express.Router();
 
-router.post("/signup", rateLimiter, validateSchema(signupSchema), signup);
 
 router.post(
-  "/create",
+  "/signup",
   validateSchema(createUserSchema),
   uploadPsize.single("profilePic"),
   createUser,
