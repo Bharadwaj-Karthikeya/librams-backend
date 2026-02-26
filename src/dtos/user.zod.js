@@ -2,14 +2,6 @@ import { z } from "zod";
 
 const emailField = z.email("Invalid email address");
 
-export const signupSchema = z.object({
-    body: z.object({
-        name: z.string().min(2, "Name must be at least 2 characters long"),
-        email: emailField,
-        password: z.string().min(6, "Password must be at least 6 characters long"),
-    }).strict(),
-});
-
 export const createUserSchema = z.object({
     body: z.object({
         name: z.string().min(2, "Name must be at least 2 characters long"),
