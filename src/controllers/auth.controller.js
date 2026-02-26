@@ -10,25 +10,6 @@ import {
 
 const getValidatedBody = (req) => req.validated?.body ?? req.body;
 
-// Handles end-user signup by creating an account directly.
-export const signup = async (req, res) => {
-  const payload = getValidatedBody(req);
-  console.info("[AuthController] Signup requested", { email: payload.email });
-  try {
-    const { user, token } = await signupService(payload);
-
-    res.status(201).json({
-      success: true,
-      message: "Signup successful",
-      user,
-      token,
-    });
-  } catch (error) {
-    console.error("[AuthController] Signup failed", error.message);
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
-
 // Creates a user account (typically by admins/staff) with extended options.
 export const createUser = async (req, res) => {
   const payload = getValidatedBody(req);

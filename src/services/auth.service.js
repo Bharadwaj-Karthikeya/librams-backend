@@ -10,30 +10,6 @@ const sanitizeUser = (userDoc) => {
   return userObject;
 };
 
-// Creates an end-user account without OTP verification.
-export const signupService = async ({ name, email, password }) => {
-  console.info("[AuthService] Direct signup", { email });
-
-  if (!name || !email || !password) {
-    throw new Error("Name, email, and password are required");
-  }
-
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    throw new Error("User with this email already exists");
-  }
-
-  const newUser = await User.create({
-    name,
-    email,
-    password: await bcrypt.hash(password, 10),
-    role: "student",
-  });
-
-  const token = generateToken(newUser._id);
-  return { token, user: sanitizeUser(newUser) };
-};
-
 // Creates a user record and uploads the optional profile picture.
 export const createUserService = async ({
   email,

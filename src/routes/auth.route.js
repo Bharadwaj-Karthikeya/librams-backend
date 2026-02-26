@@ -25,10 +25,9 @@ import { rateLimiter } from "../middlewares/ratelimitter.middleware.js";
 
 const router = express.Router();
 
-router.post("/signup", rateLimiter, validateSchema(signupSchema), signup);
 
 router.post(
-  "/create",
+  "/signup",
   validateSchema(createUserSchema),
   uploadPsize.single("profilePic"),
   createUser,
