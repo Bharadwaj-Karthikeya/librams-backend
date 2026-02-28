@@ -100,8 +100,9 @@ export const getBookBySearchService = async ({ userId, searchTerm }) => {
 export const updateBookService = async ({ body, userId, coverFile }) => {
   const { bookId } = body;
   console.info("[BooksService] Updating book", { bookId, userId });
+  console.info("[books service] updating fields", { body });
+  
   const existingBook = await Book.findById(bookId);
-
   if (!existingBook) {
     throw new Error("Book not found");
   }
@@ -111,24 +112,56 @@ export const updateBookService = async ({ body, userId, coverFile }) => {
     author: body.author,
     category: body.category,
     description: body.description,
+    publishedYear: body.publishedYear,
     copies: body.copies,
     availableCopies: body.availableCopies,
     bookCover: body.bookCover,
     isActive: body.isActive,
     isAvailableforIssue: body.isAvailableforIssue,
   };
-  
+
   if (coverFile) {
     updateData.bookCover = await uploadContent(coverFile, "Librams/Books");
   }
 
-  const targetTotal = updateData.copies ?? existingBook.copies;
-  const targetAvailable =
-    updateData.availableCopies ?? existingBook.availableCopies;
-  if (targetAvailable > targetTotal) {
-    throw new Error("Available copies cannot exceed total copies");
+  const currentTotal = existingBook.copies;
+  const currentAvailable = existingBook.availableCopies;
+  const issued = currentTotal - currentAvailable;
+
+  // If admin updates total copies
+  if (updateData.copies !== undefined) {
+    const newTotal = updateData.copies;
+
+    // Prevent reducing below issued count
+    if (newTotal < issued) {
+      throw new Error("Cannot reduce total copies below issued count");
+    }
+
+    // If admin did NOT send availableCopies,
+    // auto-adjust relative to issued books
+    if (updateData.availableCopies === undefined) {
+      updateData.availableCopies = newTotal - issued;
+    }
   }
 
+  // If admin manually sends availableCopies
+  if (updateData.availableCopies !== undefined) {
+    const finalTotal = updateData.copies ?? currentTotal;
+
+    if (updateData.availableCopies > finalTotal) {
+      throw new Error("Available copies cannot exceed total copies");
+    }
+
+    if (updateData.availableCopies < 0) {
+      throw new Error("Available copies cannot be negative");
+    }
+  }
+
+  // Auto-toggle availability flag based on stock
+  const finalAvailable = updateData.availableCopies ?? currentAvailable;
+
+  updateData.isAvailableforIssue = finalAvailable > 0;
+  
   const book = await Book.findOneAndUpdate(
     { _id: bookId },
     { $set: { ...updateData, updatedBy: userId } },

@@ -22,6 +22,7 @@ export const updateBookSchema = zod.object({
     author: zod.string().optional(),
     category: zod.string().optional(),
     description: zod.string().optional(),
+    publishedYear: zod.coerce.number().optional(),
     copies: zod.coerce.number().int().positive().optional(),
     availableCopies: zod.coerce.number().int().nonnegative().optional(),
     bookCover: zod.string().optional(),
