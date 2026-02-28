@@ -8,33 +8,31 @@ export const createBookSchema = zod.object({
     author: zod.string().min(1, "Author is required"),
     isbn: zod.string().min(1, "ISBN is required"),
     description: zod.string().optional(),
-    publishedYear: zod.number().optional(),
+    publishedYear: zod.coerce.number().optional(),
     category: zod.string().min(1, "Category is required"),
     bookCover: zod.string().optional(),
-    copies: zod.number().int().positive(),
+    copies: zod.coerce.number().int().positive(),
   }).strict(),
 });
 
 export const updateBookSchema = zod.object({
   body: zod.object({
     bookId: objectIdField,
-    updateFields: zod.object({
-      title: zod.string().optional(),
-      author: zod.string().optional(),
-      category: zod.string().optional(),
-      description: zod.string().optional(),
-      copies: zod.number().int().positive().optional(),
-      availableCopies: zod.number().int().nonnegative().optional(),
-      bookCover: zod.string().optional(),
-      isActive: zod.boolean().optional(),
-      isAvailableforIssue: zod.boolean().optional(),
-    }).strict(),
+    title: zod.string().optional(),
+    author: zod.string().optional(),
+    category: zod.string().optional(),
+    description: zod.string().optional(),
+    copies: zod.coerce.number().int().positive().optional(),
+    availableCopies: zod.coerce.number().int().nonnegative().optional(),
+    bookCover: zod.string().optional(),
+    isActive: zod.coerce.boolean().optional(),
+    isAvailableforIssue: zod.coerce.boolean().optional(),
   }).strict(),
 });
 
 export const getBooksSearchSchema = zod.object({
   query: zod.object({
-    q: zod.string().min(1, "Search query is required"),
+    searchTerm: zod.string().min(1, "Search query is required"),
   }).strict(),
 });
 

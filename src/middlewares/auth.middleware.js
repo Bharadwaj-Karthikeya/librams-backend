@@ -53,24 +53,20 @@ export const rolesMiddleware = (allowedRoles) => {
 };
 
 // Validates request payloads (body, params, query) against the provided Zod schema.
-export const validateSchema = (schema) => {
-    return (req, res, next) => {
-        const parsedResult = schema.safeParse({
-            body: req.body,
-            params: req.params,
-            query: req.query,
-        });
-
-        if (!parsedResult.success) {
-            const [firstIssue] = parsedResult.error.errors;
-            console.warn("[ValidateSchema] Validation failed", firstIssue?.message);
-            return res.status(400).json({
-                success: false,
-                message: firstIssue?.message || "Invalid request payload",
-            });
-        }
-
-        req.validated = parsedResult.data;
-        next();
+export const validateSchema = (schema) => (req, res, next) => {
+    const payload = {
+        body: req.body,
+        params: req.params,
+        query: req.query,
     };
+    const result = schema.safeParse(payload);
+
+  if (!result.success) {
+        console.log(result.error.issues);
+    return res.status(400).json(result.error.issues);
+  }
+
+    req.validated = result.data;
+
+  next();
 };

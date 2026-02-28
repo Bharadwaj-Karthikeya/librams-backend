@@ -15,7 +15,7 @@ const getValidated = (req) => req.validated ?? { body: req.body, params: req.par
 // Issues a book to a target user if stock permits.
 export const issueBook = async (req, res) => {
     const { body } = getValidated(req);
-    console.info("[IssueController] Issue book", { bookId: body.bookId, toUserEmail: body.toUserEmail });
+    console.info("[IssueController] Issue book", { isbn: body.isbn, toUserEmail: body.toUserEmail });
     try {
         const result = await IssueBookService({ userId: req.user.userId, body });
         res.status(201).json(result);

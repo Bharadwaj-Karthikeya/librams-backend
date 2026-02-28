@@ -7,7 +7,7 @@ const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // Issues a book copy and tracks inventory atomically.
 export const IssueBookService = async ({ userId, body }) => {
-  console.info("[IssueService] Issue book", { bookId: body.bookId, toUserEmail: body.toUserEmail });
+  console.info("[IssueService] Issue book", { isbn: body.isbn, toUserEmail: body.toUserEmail });
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -18,8 +18,22 @@ export const IssueBookService = async ({ userId, body }) => {
       throw new Error("User not found");
     }
 
+    const book = await Book.findOne({ isbn: body.isbn }).session(session);
+
+    if (!book) {
+      throw new Error("Book with this ISBN was not found");
+    }
+
+    if (!book.isActive || !book.isAvailableforIssue) {
+      throw new Error("Book is not available for issuing");
+    }
+
+    if (book.availableCopies <= 0) {
+      throw new Error("No copies available");
+    }
+
     const existingIssue = await Issue.findOne({
-      book: body.bookId,
+      book: book._id,
       toUser: toUser._id,
       status: { $in: ["issued", "overdue"] },
     }).session(session);
@@ -28,9 +42,9 @@ export const IssueBookService = async ({ userId, body }) => {
       throw new Error("User already has an active issue for this book");
     }
 
-    const book = await Book.findOneAndUpdate(
+    const updatedBook = await Book.findOneAndUpdate(
       {
-        _id: body.bookId,
+        _id: book._id,
         availableCopies: { $gt: 0 },
         isActive: true,
         isAvailableforIssue: true,
@@ -39,13 +53,13 @@ export const IssueBookService = async ({ userId, body }) => {
       { new: true, session },
     );
 
-    if (!book) {
+    if (!updatedBook) {
       throw new Error("No copies available");
     }
 
     const newIssue = await Issue.create([
       {
-        book: body.bookId,
+        book: book._id,
         toUser: toUser._id,
         byUser: userId,
         dueDate: body.dueDate,

@@ -8,7 +8,7 @@ const futureDate = z.string().refine((dateStr) => {
 
 export const IssueBookSchema = z.object({
   body: z.object({
-    bookId: objectId,
+    isbn: z.string().min(3, "ISBN is required"),
     toUserEmail: z.string().email("Invalid email"),
     dueDate: futureDate,
   }).strict(),
