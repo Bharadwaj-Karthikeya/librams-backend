@@ -89,7 +89,6 @@ export const getBooksBySearch = async (req, res) => {
 
 // Updates mutable book fields and optionally a cover image.
 export const updateBook = async (req, res) => {
-  console.log(req)
   const { body } = req;
   console.info("[BooksController] Update book", { bookId: body.bookId });
   try {

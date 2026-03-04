@@ -100,7 +100,6 @@ export const getBookBySearchService = async ({ userId, searchTerm }) => {
 export const updateBookService = async ({ body, userId, coverFile }) => {
   const { bookId } = body;
   console.info("[BooksService] Updating book", { bookId, userId });
-  console.info("[books service] updating fields", { body });
   
   const existingBook = await Book.findById(bookId);
   if (!existingBook) {
