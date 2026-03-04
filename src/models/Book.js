@@ -27,10 +27,6 @@ const bookSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    publishedYear: {
-      type: Number,
-      min: 0,
-    },
     copies: {
       type: Number,
       default: 1,
