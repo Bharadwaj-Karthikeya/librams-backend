@@ -5,6 +5,8 @@ import {
   updateUserProfileService,
   deleteUserService,
   resetPasswordService,
+  changePasswordService,
+  updateUserRoleService
 } from "../services/auth.service.js";
 
 const getValidatedBody = (req) => req.validated?.body ?? req.body;
@@ -117,6 +119,39 @@ export const resetPassword = async (req, res) => {
     });
   } catch (error) {
     console.error("[AuthController] Reset password failed", error.message);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Allows an authenticated user to change their password by providing the current password.
+export const changePassword = async (req, res) => {
+  const payload = getValidatedBody(req);
+  console.info("[AuthController] Change password request", { userId: req.user?.userId });
+  try {
+    await changePasswordService(req.user.userId, payload);
+    res.status(200).json({
+      success: true,
+      message: "Password changed successfully",
+    });
+  } catch (error) {
+    console.error("[AuthController] Change password failed", error.message);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Allows an admin to update a user's role.
+export const updateUserRole = async (req, res) => {
+  const payload = getValidatedBody(req);
+  console.info("[AuthController] Update user role request", { userId: payload.userId, newRole: payload.newRole });
+  try {
+    const updatedUser = await updateUserRoleService(payload.userId, payload.newRole);
+    res.status(200).json({
+      success: true,
+      message: "User role updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("[AuthController] Update user role failed", error.message);
     res.status(400).json({ success: false, message: error.message });
   }
 };
