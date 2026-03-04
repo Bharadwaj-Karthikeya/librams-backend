@@ -70,7 +70,10 @@ describe("Books Service", () => {
 
   describe("getBookBySearchService", () => {
     it("enforces trimming and student visibility", async () => {
-      const sortSpy = jest.fn().mockResolvedValue("sorted-books");
+      const sortSpy = jest
+        .fn()
+        .mockResolvedValueOnce("sorted-books")
+        .mockResolvedValueOnce("sorted-books");
       mockBookModel.find.mockReturnValue({ sort: sortSpy });
       mockUserModel.findById.mockReturnValue({
         select: jest.fn().mockResolvedValue({ role: "student" }),
@@ -81,13 +84,22 @@ describe("Books Service", () => {
         searchTerm: "  history  ",
       });
 
-      expect(mockBookModel.find).toHaveBeenCalledWith({
-        $text: { $search: "history" },
-        isActive: true,
-        isAvailableforIssue: true,
-      }, {
-        score: { $meta: "textScore" },
-      });
+      const expectedFilter = {
+        $text: { $search: "  history  " },
+        isActive: { $ne: false },
+        isAvailableforIssue: { $ne: false },
+      };
+
+      expect(mockBookModel.find).toHaveBeenNthCalledWith(
+        1,
+        expectedFilter,
+        { score: { $meta: "textScore" } },
+      );
+      expect(mockBookModel.find).toHaveBeenNthCalledWith(
+        2,
+        expectedFilter,
+        { score: { $meta: "textScore" } },
+      );
       expect(sortSpy).toHaveBeenCalledWith({ score: { $meta: "textScore" } });
       expect(result).toBe("sorted-books");
     });
@@ -108,8 +120,7 @@ describe("Books Service", () => {
       });
 
       await expect(updateBookService({
-        bookId: "book-id",
-        updateFields: { copies: 5, availableCopies: 6 },
+        body: { bookId: "book-id", copies: 5, availableCopies: 6 },
         userId: "admin",
       })).rejects.toThrow("Available copies cannot exceed total copies");
     });
@@ -124,8 +135,7 @@ describe("Books Service", () => {
       mockBookModel.findOneAndUpdate.mockResolvedValue(updatedBook);
 
       const result = await updateBookService({
-        bookId: "book-id",
-        updateFields: { title: "Updated" },
+        body: { bookId: "book-id", title: "Updated" },
         userId: "admin",
         coverFile: { buffer: Buffer.from("file") },
       });

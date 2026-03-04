@@ -7,6 +7,7 @@ const mockIssueModel = {
 };
 
 const mockBookModel = {
+  findOne: jest.fn(),
   findOneAndUpdate: jest.fn(),
   find: jest.fn(),
 };
@@ -59,15 +60,22 @@ describe("Issue Service", () => {
 
   describe("IssueBookService", () => {
     it("issues a book when inventory and user checks pass", async () => {
+      const bookDoc = {
+        _id: "book",
+        isActive: true,
+        isAvailableforIssue: true,
+        availableCopies: 2,
+      };
       mockUserModel.findOne.mockReturnValue(withSessionResult({ _id: "user" }));
       mockIssueModel.findOne.mockReturnValue(withSessionResult(null));
+      mockBookModel.findOne.mockReturnValue(withSessionResult(bookDoc));
       mockBookModel.findOneAndUpdate.mockResolvedValue({ _id: "book" });
       const newIssue = { _id: "issue" };
       mockIssueModel.create.mockResolvedValue([newIssue]);
 
       const result = await IssueBookService({
         userId: "librarian",
-        body: { bookId: "book", toUserEmail: "student@example.com", dueDate: new Date() },
+        body: { isbn: "isbn-123", toUserEmail: "student@example.com", dueDate: new Date() },
       });
 
       expect(mockSession.commitTransaction).toHaveBeenCalled();
@@ -79,7 +87,7 @@ describe("Issue Service", () => {
 
       await expect(IssueBookService({
         userId: "librarian",
-        body: { bookId: "book", toUserEmail: "missing@example.com", dueDate: new Date() },
+        body: { isbn: "isbn-123", toUserEmail: "missing@example.com", dueDate: new Date() },
       })).rejects.toThrow("User not found");
 
       expect(mockSession.abortTransaction).toHaveBeenCalled();

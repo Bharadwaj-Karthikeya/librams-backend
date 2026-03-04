@@ -31,7 +31,7 @@ jest.unstable_mockModule("../../src/utils/generateToken.js", () => ({
 }));
 
 const authService = await import("../../src/services/auth.service.js");
-const { signupService, loginService } = authService;
+const { createUserService, loginService } = authService;
 
 const buildUserDoc = (overrides = {}) => ({
   _id: "user-id",
@@ -51,7 +51,7 @@ describe("Auth Service", () => {
     jest.clearAllMocks();
   });
 
-  describe("signupService", () => {
+  describe("createUserService", () => {
     it("creates a new user and strips the password", async () => {
       const userDoc = buildUserDoc();
       mockUserModel.findOne.mockResolvedValue(null);
@@ -59,7 +59,7 @@ describe("Auth Service", () => {
       mockUserModel.create.mockResolvedValue(userDoc);
       mockToken.mockReturnValue("jwt-token");
 
-      const result = await signupService({
+      const result = await createUserService({
         name: "Sample",
         email: "user@example.com",
         password: "secret",
@@ -70,6 +70,7 @@ describe("Auth Service", () => {
         email: "user@example.com",
         password: "hashed-secret",
         role: "student",
+        profilePicture: null,
       });
       expect(mockToken).toHaveBeenCalledWith("user-id");
       expect(result.token).toBe("jwt-token");
@@ -83,7 +84,7 @@ describe("Auth Service", () => {
     it("throws when the email is already registered", async () => {
       mockUserModel.findOne.mockResolvedValue({ _id: "existing" });
 
-      await expect(signupService({
+      await expect(createUserService({
         name: "Sample",
         email: "user@example.com",
         password: "secret",

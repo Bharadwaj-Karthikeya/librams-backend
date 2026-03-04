@@ -65,11 +65,23 @@ components:
           type: string
         category:
           type: string
+        description:
+          type: string
+          nullable: true
+        publishedYear:
+          type: integer
+          nullable: true
+        copies:
+          type: integer
         availableCopies:
           type: integer
         bookCover:
           type: string
           nullable: true
+        isActive:
+          type: boolean
+        isAvailableforIssue:
+          type: boolean
     Issue:
       type: object
       properties:
@@ -84,6 +96,9 @@ components:
         status:
           type: string
           enum: [issued, overdue, returned]
+        issueDate:
+          type: string
+          format: date-time
         dueDate:
           type: string
           format: date-time
@@ -95,39 +110,6 @@ paths:
   /auth/signup:
     post:
       summary: Create an account (self-service signup)
-      tags: [Auth]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name, email, password]
-              properties:
-                name:
-                  type: string
-                email:
-                  type: string
-                  format: email
-                password:
-                  type: string
-                  format: password
-      responses:
-        '201':
-          description: Signup successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /auth/create:
-    post:
-      summary: Create a user (admin/staff action)
       tags: [Auth]
       requestBody:
         required: true
@@ -153,13 +135,13 @@ paths:
                   format: binary
       responses:
         '201':
-          description: User created
+          description: Signup successful
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
-          description: Creation failed
+          description: Validation error
           content:
             application/json:
               schema:
@@ -178,6 +160,7 @@ paths:
               properties:
                 email:
                   type: string
+                  format: email
                 password:
                   type: string
                   format: password
@@ -214,7 +197,7 @@ paths:
                     $ref: '#/components/schemas/User'
         '401':
           description: Unauthorized
-    put:
+    patch:
       summary: Update the authenticated user's profile
       security:
         - bearerAuth: []
@@ -228,6 +211,9 @@ paths:
               properties:
                 name:
                   type: string
+                email:
+                  type: string
+                  format: email
                 profilePic:
                   type: string
                   format: binary
@@ -238,7 +224,7 @@ paths:
           description: Validation error
   /auth/delete:
     delete:
-      summary: Delete a user (admin/staff)
+      summary: Delete a user
       security:
         - bearerAuth: []
       tags: [Auth]
@@ -257,6 +243,77 @@ paths:
           description: Deleted
         '403':
           description: Forbidden
+  /auth/reset-password:
+    post:
+      summary: Reset a user's password (admin/staff)
+      security:
+        - bearerAuth: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, newPassword]
+              properties:
+                email:
+                  type: string
+                  format: email
+                newPassword:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password reset
+        '400':
+          description: Validation error
+  /auth/change-password:
+    post:
+      summary: Change the authenticated user's password
+      security:
+        - bearerAuth: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newPassword]
+              properties:
+                newPassword:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password changed
+        '400':
+          description: Validation error
+  /auth/update-role:
+    post:
+      summary: Update a user's role (admin)
+      security:
+        - bearerAuth: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, newRole]
+              properties:
+                userId:
+                  type: string
+                newRole:
+                  type: string
+                  enum: [admin, staff, student]
+      responses:
+        '200':
+          description: Role updated
+        '400':
+          description: Validation error
   /books/add:
     post:
       summary: Add a book
@@ -281,6 +338,8 @@ paths:
                   type: string
                 description:
                   type: string
+                publishedYear:
+                  type: integer
                 copies:
                   type: integer
                 bookCover:
@@ -308,6 +367,50 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Book'
+  /books/update:
+    patch:
+      summary: Update a book
+      security:
+        - bearerAuth: []
+      tags: [Books]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [bookId]
+              properties:
+                bookId:
+                  type: string
+                title:
+                  type: string
+                author:
+                  type: string
+                category:
+                  type: string
+                description:
+                  type: string
+                publishedYear:
+                  type: integer
+                copies:
+                  type: integer
+                availableCopies:
+                  type: integer
+                bookCover:
+                  type: string
+                  format: binary
+                isActive:
+                  type: boolean
+                isAvailableforIssue:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated book
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
   /books/details/{bookId}:
     get:
       summary: Fetch a single book
@@ -323,6 +426,31 @@ paths:
       responses:
         '200':
           description: Book data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+  /books/category/{category}:
+    get:
+      summary: List books by category
+      security:
+        - bearerAuth: []
+      tags: [Books]
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category books
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
   /books/search:
     get:
       summary: Text search over books
@@ -330,7 +458,7 @@ paths:
         - bearerAuth: []
       tags: [Books]
       parameters:
-        - name: q
+        - name: searchTerm
           in: query
           required: true
           schema:
@@ -344,6 +472,44 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Book'
+  /books/delete:
+    delete:
+      summary: Soft delete a book
+      security:
+        - bearerAuth: []
+      tags: [Books]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookId]
+              properties:
+                bookId:
+                  type: string
+      responses:
+        '200':
+          description: Book deleted
+  /books/delete-complete:
+    delete:
+      summary: Permanently delete a book (admin)
+      security:
+        - bearerAuth: []
+      tags: [Books]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookId]
+              properties:
+                bookId:
+                  type: string
+      responses:
+        '200':
+          description: Book deleted permanently
   /issues/issue:
     post:
       summary: Issue a book to a user
@@ -356,15 +522,17 @@ paths:
           application/json:
             schema:
               type: object
-              required: [bookId, toUserEmail, dueDate]
+              required: [isbn, toUserEmail, dueDate]
               properties:
-                bookId:
+                isbn:
                   type: string
                 toUserEmail:
                   type: string
+                  format: email
                 dueDate:
                   type: string
                   format: date-time
+                  description: Accepts ISO date-time or YYYY-MM-DD.
       responses:
         '201':
           description: Issue created
@@ -387,6 +555,33 @@ paths:
       responses:
         '200':
           description: Issue updated
+  /issues/extend/{id}:
+    put:
+      summary: Extend an issue due date
+      security:
+        - bearerAuth: []
+      tags: [Issues]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newDueDate]
+              properties:
+                newDueDate:
+                  type: string
+                  format: date-time
+                  description: Accepts ISO date-time or YYYY-MM-DD.
+      responses:
+        '200':
+          description: Issue updated
   /issues/overdue:
     get:
       summary: List overdue issues
@@ -402,15 +597,21 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Issue'
-  /issues/my-issues:
+  /issues:
     get:
-      summary: List issues for the authenticated user
+      summary: List all issues (admin/staff)
       security:
         - bearerAuth: []
       tags: [Issues]
       responses:
         '200':
-          description: User issues
+          description: All issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Issue'
   /issues/search:
     get:
       summary: Search issues (admin/staff)
@@ -432,3 +633,79 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Issue'
+  /issues/book/{bookId}:
+    get:
+      summary: Issue history for a book
+      security:
+        - bearerAuth: []
+      tags: [Issues]
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book issue history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Issue'
+  /issues/user:
+    get:
+      summary: List issues for a specific user (auth required)
+      security:
+        - bearerAuth: []
+      tags: [Issues]
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Issue'
+  /issues/my-issues:
+    get:
+      summary: List issues for the authenticated user
+      security:
+        - bearerAuth: []
+      tags: [Issues]
+      responses:
+        '200':
+          description: User issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Issue'
+  /issues/{id}:
+    get:
+      summary: Get issue details
+      security:
+        - bearerAuth: []
+      tags: [Issues]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Issue details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Issue'
