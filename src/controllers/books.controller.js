@@ -9,10 +9,11 @@ import {
   deleteBookPermanentlyService,
 } from "../services/books.service.js";
 
+const getValidated = (req) => req.validated ?? { body: req.body, params: req.params, query: req.query };
 
 // Persists a new book entry with optional cover upload.
 export const addBook = async (req, res) => {
-  const { body } = req;
+  const { body } = getValidated(req);
   console.info("[BooksController] Add book", { isbn: body.isbn, userId: req.user?.userId });
   try {
     const newBook = await addBookService({
@@ -57,7 +58,7 @@ export const getBookDetails = async (req, res) => {
 
 // Filters books based on category while respecting user role constraints.
 export const getBooksByCategory = async (req, res) => {
-  const { params } = req;
+  const { params } = getValidated(req);
   console.info("[BooksController] Books by category", { category: params.category });
   try {
     const books = await getBooksByCategoryService({
@@ -73,12 +74,12 @@ export const getBooksByCategory = async (req, res) => {
 
 // Performs a text search across indexed book fields.
 export const getBooksBySearch = async (req, res) => {
-  const { query } = req;
-  console.info("[BooksController] Search books", { query: query.searchTerm });
+  const { query } = getValidated(req);
+  console.info("[BooksController] Search books", { query: query.q });
   try {
     const books = await getBookBySearchService({
       userId: req.user.userId,
-      searchTerm: query.searchTerm,
+      searchTerm: query.q,
     });
     res.status(200).json(books);
   } catch (error) {
@@ -89,11 +90,12 @@ export const getBooksBySearch = async (req, res) => {
 
 // Updates mutable book fields and optionally a cover image.
 export const updateBook = async (req, res) => {
-  const { body } = req;
+  const { body } = getValidated(req);
   console.info("[BooksController] Update book", { bookId: body.bookId });
   try {
     const updatedBook = await updateBookService({
-      body: body,
+      bookId: body.bookId,
+      updateFields: body.updateFields,
       userId: req.user.userId,
       coverFile: req.file,
     });
@@ -106,7 +108,7 @@ export const updateBook = async (req, res) => {
 
 // Soft deletes a book by toggling its active state.
 export const deleteBook = async (req, res) => {
-  const { body } = req;
+  const { body } = getValidated(req);
   console.info("[BooksController] Soft delete book", { bookId: body.bookId });
   try {
     const result = await deleteBookService(body.bookId);
@@ -119,7 +121,7 @@ export const deleteBook = async (req, res) => {
 
 // Permanently removes a book (admin only).
 export const deleteBookPermanently = async (req, res) => {
-  const { body } = req;
+  const { body } = getValidated(req);
   console.info("[BooksController] Hard delete book", { bookId: body.bookId });
   try {
     const result = await deleteBookPermanentlyService(body.bookId);
