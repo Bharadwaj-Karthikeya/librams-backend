@@ -107,12 +107,18 @@ export const updateUserProfileService = async (userId, updateData) => {
 };
 
 // Allows a user to change their password after confirming the current password.
-export const changePasswordService = async (userId, { newPassword }) => {
+export const changePasswordService = async (userId, { currentPassword, newPassword }) => {
   console.info("[AuthService] Changing password", { userId });
   const user = await User.findById(userId);
 
   if (!user) {
     throw new Error("User not found");
+  }
+
+  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+
+  if (!isCurrentPasswordValid) {
+    throw new Error("Current password is incorrect");
   }
 
   user.password = await bcrypt.hash(newPassword, 10);
@@ -144,20 +150,4 @@ export const resetPasswordService = async ({ email, newPassword }) => {
   user.password = await bcrypt.hash(newPassword, 10);
   await user.save();
   return { message: "Password reset successfully" };
-};
-
-// Updates a user's role (admin action).
-export const updateUserRoleService = async (userId, newRole) => {
-  console.info("[AuthService] Updating user role", { userId, newRole });
-  const user = await User.findByIdAndUpdate(
-    userId,
-    { role: newRole },
-    { new: true }
-  );
-
-  if (!user) {
-    throw new Error("User not found");
-  }
-
-  return sanitizeUser(user);
 };

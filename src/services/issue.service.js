@@ -5,57 +5,9 @@ import User from "../models/User.js";
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const isDateOnlyString = (value) =>
-  typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
-
-const parseLocalDate = (value) => {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-};
-
-const getNextHalfHour = (baseDate) => {
-  const minutes = baseDate.getMinutes();
-  const roundedMinutes = Math.ceil(minutes / 30) * 30;
-  let hours = baseDate.getHours();
-  let finalMinutes = roundedMinutes;
-
-  if (roundedMinutes === 60) {
-    hours += 1;
-    finalMinutes = 0;
-    if (hours === 24) {
-      hours = 23;
-      finalMinutes = 30;
-    }
-  }
-
-  return { hours, minutes: finalMinutes };
-};
-
-const normalizeDueDate = (input, referenceDate = new Date()) => {
-  if (!input) return input;
-
-  if (input instanceof Date) {
-    return input;
-  }
-
-  if (isDateOnlyString(input)) {
-    const localDate = parseLocalDate(input);
-    const { hours, minutes } = getNextHalfHour(referenceDate);
-    localDate.setHours(hours, minutes, 0, 0);
-    return localDate;
-  }
-
-  const parsed = new Date(input);
-  if (Number.isNaN(parsed.getTime())) {
-    throw new Error("Invalid due date");
-  }
-
-  return parsed;
-};
-
 // Issues a book copy and tracks inventory atomically.
 export const IssueBookService = async ({ userId, body }) => {
-  console.info("[IssueService] Issue book", { isbn: body.isbn, toUserEmail: body.toUserEmail });
+  console.info("[IssueService] Issue book", { bookId: body.bookId, toUserEmail: body.toUserEmail });
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -66,22 +18,8 @@ export const IssueBookService = async ({ userId, body }) => {
       throw new Error("User not found");
     }
 
-    const book = await Book.findOne({ isbn: body.isbn }).session(session);
-
-    if (!book) {
-      throw new Error("Book with this ISBN was not found");
-    }
-
-    if (!book.isActive || !book.isAvailableforIssue) {
-      throw new Error("Book is not available for issuing");
-    }
-
-    if (book.availableCopies <= 0) {
-      throw new Error("No copies available");
-    }
-
     const existingIssue = await Issue.findOne({
-      book: book._id,
+      book: body.bookId,
       toUser: toUser._id,
       status: { $in: ["issued", "overdue"] },
     }).session(session);
@@ -90,9 +28,9 @@ export const IssueBookService = async ({ userId, body }) => {
       throw new Error("User already has an active issue for this book");
     }
 
-    const updatedBook = await Book.findOneAndUpdate(
+    const book = await Book.findOneAndUpdate(
       {
-        _id: book._id,
+        _id: body.bookId,
         availableCopies: { $gt: 0 },
         isActive: true,
         isAvailableforIssue: true,
@@ -101,18 +39,16 @@ export const IssueBookService = async ({ userId, body }) => {
       { new: true, session },
     );
 
-    if (!updatedBook) {
+    if (!book) {
       throw new Error("No copies available");
     }
 
-    const dueDate = normalizeDueDate(body.dueDate, new Date());
-
     const newIssue = await Issue.create([
       {
-        book: book._id,
+        book: body.bookId,
         toUser: toUser._id,
         byUser: userId,
-        dueDate,
+        dueDate: body.dueDate,
       },
     ], { session });
 
@@ -184,9 +120,11 @@ export const getUserIssuesService = async (userId) => {
 // Lists all overdue issues, auto-updating statuses.
 export const getOverdueIssuesService = async () => {
   console.info("[IssueService] Fetch overdue issues");
-  await markOverdueIssuesService();
-
   const now = new Date();
+  await Issue.updateMany(
+    { dueDate: { $lt: now }, status: "issued" },
+    { $set: { status: "overdue" } },
+  );
 
   return Issue.find({ dueDate: { $lt: now }, status: "overdue" })
     .populate("book", "title author")
@@ -221,10 +159,9 @@ export const getIssueDetailsService = async (issueId) => {
 // Extends the due date of an active issue.
 export const extendDueDateService = async (issueId, newDueDate) => {
   console.info("[IssueService] Extend due date", { issueId });
-  const dueDate = normalizeDueDate(newDueDate, new Date());
   const issue = await Issue.findOneAndUpdate(
     { _id: issueId, status: { $in: ["issued", "overdue"] } },
-    { $set: { dueDate, status: "issued" } },
+    { $set: { dueDate: newDueDate, status: "issued" } },
     { new: true },
   );
 
@@ -233,16 +170,6 @@ export const extendDueDateService = async (issueId, newDueDate) => {
   }
 
   return issue;
-};
-
-export const markOverdueIssuesService = async () => {
-  const now = new Date();
-  const result = await Issue.updateMany(
-    { dueDate: { $lt: now }, status: "issued" },
-    { $set: { status: "overdue" } },
-  );
-
-  return result?.modifiedCount ?? result?.nModified ?? 0;
 };
 
 // Builds a history of issues for a specific book.

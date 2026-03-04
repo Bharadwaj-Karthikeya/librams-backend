@@ -7,11 +7,6 @@ const resolveRole = async (userId) => {
   return user?.role ?? "student";
 };
 
-const studentVisibilityFilter = {
-  isActive: { $ne: false },
-  isAvailableforIssue: { $ne: false },
-};
-
 // Creates a book with optional cover upload, defaulting availability to total copies.
 export const addBookService = async ({ bookData, userId, coverFile }) => {
   console.info("[BooksService] Adding book", { isbn: bookData.isbn, userId });
@@ -40,7 +35,9 @@ export const addBookService = async ({ bookData, userId, coverFile }) => {
 export const getBooksService = async ({ userId }) => {
   const role = await resolveRole(userId);
   console.info("[BooksService] Listing books", { userId, role });
-  const query = role === "student" ? studentVisibilityFilter : {};
+  const query = role === "student"
+    ? { isActive: true, isAvailableforIssue: true }
+    : {};
   return Book.find(query).sort({ availableCopies: -1, updatedAt: -1 });
 };
 
@@ -48,10 +45,9 @@ export const getBooksService = async ({ userId }) => {
 export const getBookDetailsService = async ({ userId, bookId }) => {
   const role = await resolveRole(userId);
   console.info("[BooksService] Fetching book details", { bookId, role });
-  const query =
-    role === "student"
-      ? { _id: bookId, ...studentVisibilityFilter }
-      : { _id: bookId };
+  const query = role === "student"
+    ? { _id: bookId, isActive: true, isAvailableforIssue: true }
+    : { _id: bookId };
 
   const book = await Book.findOne(query);
   if (!book) {
@@ -64,103 +60,52 @@ export const getBookDetailsService = async ({ userId, bookId }) => {
 export const getBooksByCategoryService = async ({ userId, category }) => {
   const role = await resolveRole(userId);
   console.info("[BooksService] Category lookup", { category, role });
-  const query =
-    role === "student"
-      ? { category, ...studentVisibilityFilter }
-      : { category };
+  const query = role === "student"
+    ? { category, isActive: true, isAvailableforIssue: true }
+    : { category };
   return Book.find(query).sort({ availableCopies: -1, updatedAt: -1 });
 };
 
 // Text search over books honoring student restrictions.
 export const getBookBySearchService = async ({ userId, searchTerm }) => {
   const role = await resolveRole(userId);
-  if (!searchTerm?.trim()) {
+  const trimmedTerm = searchTerm?.trim();
+  if (!trimmedTerm) {
     throw new Error("Search term is required");
   }
-  console.info("[BooksService] Searching books", {
-    searchTerm: searchTerm,
-    role,
-  });
+  console.info("[BooksService] Searching books", { searchTerm: trimmedTerm, role });
+  const baseQuery = {
+    $text: { $search: trimmedTerm },
+  };
 
-  const filter =
-    role === "student"
-      ? { $text: { $search: searchTerm }, ...studentVisibilityFilter }
-      : { $text: { $search: searchTerm } };
+  const filter = role === "student"
+    ? { ...baseQuery, isActive: true, isAvailableforIssue: true }
+    : { ...baseQuery, isActive: true };
 
-  const books = Book.find(filter, { score: { $meta: "textScore" } }).sort({
-    score: { $meta: "textScore" },
-  });
-  console.log((await books).length, "books found for search term");
-  return Book.find(filter, { score: { $meta: "textScore" } }).sort({
-    score: { $meta: "textScore" },
-  });
+  return Book.find(filter, { score: { $meta: "textScore" } })
+    .sort({ score: { $meta: "textScore" } });
 };
 
 // Updates book metadata and cover while keeping counts consistent.
-export const updateBookService = async ({ body, userId, coverFile }) => {
-  const { bookId } = body;
+export const updateBookService = async ({ bookId, updateFields, userId, coverFile }) => {
   console.info("[BooksService] Updating book", { bookId, userId });
-  
   const existingBook = await Book.findById(bookId);
+
   if (!existingBook) {
     throw new Error("Book not found");
   }
 
-  const updateData = {
-    title: body.title,
-    author: body.author,
-    category: body.category,
-    description: body.description,
-    publishedYear: body.publishedYear,
-    copies: body.copies,
-    availableCopies: body.availableCopies,
-    bookCover: body.bookCover,
-    isActive: body.isActive,
-    isAvailableforIssue: body.isAvailableforIssue,
-  };
-
+  const updateData = { ...updateFields };
   if (coverFile) {
     updateData.bookCover = await uploadContent(coverFile, "Librams/Books");
   }
 
-  const currentTotal = existingBook.copies;
-  const currentAvailable = existingBook.availableCopies;
-  const issued = currentTotal - currentAvailable;
-
-  // If admin updates total copies
-  if (updateData.copies !== undefined) {
-    const newTotal = updateData.copies;
-
-    // Prevent reducing below issued count
-    if (newTotal < issued) {
-      throw new Error("Cannot reduce total copies below issued count");
-    }
-
-    // If admin did NOT send availableCopies,
-    // auto-adjust relative to issued books
-    if (updateData.availableCopies === undefined) {
-      updateData.availableCopies = newTotal - issued;
-    }
+  const targetTotal = updateData.copies ?? existingBook.copies;
+  const targetAvailable = updateData.availableCopies ?? existingBook.availableCopies;
+  if (targetAvailable > targetTotal) {
+    throw new Error("Available copies cannot exceed total copies");
   }
 
-  // If admin manually sends availableCopies
-  if (updateData.availableCopies !== undefined) {
-    const finalTotal = updateData.copies ?? currentTotal;
-
-    if (updateData.availableCopies > finalTotal) {
-      throw new Error("Available copies cannot exceed total copies");
-    }
-
-    if (updateData.availableCopies < 0) {
-      throw new Error("Available copies cannot be negative");
-    }
-  }
-
-  // Auto-toggle availability flag based on stock
-  const finalAvailable = updateData.availableCopies ?? currentAvailable;
-
-  updateData.isAvailableforIssue = finalAvailable > 0;
-  
   const book = await Book.findOneAndUpdate(
     { _id: bookId },
     { $set: { ...updateData, updatedBy: userId } },
